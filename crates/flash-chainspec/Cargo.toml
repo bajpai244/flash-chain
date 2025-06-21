@@ -1,0 +1,14 @@
+[package]
+name = "flash-chainspec"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+alloy-primitives = { workspace = true }
+
+op-reth = { workspace = true } 
+reth-op = { workspace = true } 
+reth-cli = { workspace = true }
+reth-optimism-forks = { workspace = true }
+eyre = { workspace = true }
+serde_json =  { workspace = true }

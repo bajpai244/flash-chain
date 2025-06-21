@@ -32,3 +32,5 @@ reth-chain-state = { workspace = true }
 
 clap = { workspace = true }
 tracing = { workspace = true } 
+
+flash-chainspec = { path = "../crates/flash-chainspec" }  

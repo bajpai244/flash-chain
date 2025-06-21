@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "bin",
+    "crates/flash-chainspec"
 ]
 resolver = "2"
 
@@ -12,6 +13,10 @@ reth-rpc-eth-api = { git = "https://github.com/paradigmxyz/reth.git", version = 
 reth-node-api = { git = "https://github.com/paradigmxyz/reth.git", version = "1.4.8" }
 reth-node-builder = { git = "https://github.com/paradigmxyz/reth.git", version = "1.4.8" }
 reth-errors = { git = "https://github.com/paradigmxyz/reth.git", version = "1.4.8" }
+
+op-reth = { git = "https://github.com/paradigmxyz/reth.git", version = "1.4.8" }
+reth-op = { git = "https://github.com/paradigmxyz/reth.git", version = "1.4.8" }
+
 reth-optimism-node = { git = "https://github.com/paradigmxyz/reth.git", version = "1.4.8" }
 reth-optimism-cli = { git = "https://github.com/paradigmxyz/reth.git", version = "1.4.8" }
 reth-optimism-rpc = { git = "https://github.com/paradigmxyz/reth.git", version = "1.4.8" }
@@ -31,5 +36,8 @@ reth-network = { git = "https://github.com/paradigmxyz/reth.git", version = "1.4
 reth-network-types = { git = "https://github.com/paradigmxyz/reth.git", version = "1.4.8" }
 reth-chain-state = { git = "https://github.com/paradigmxyz/reth.git", version = "1.4.8" }
 
+alloy-primitives = "1.2.1"
 clap = "4"
 tracing = "0.1.41"
+eyre = "0.6.12"
+serde_json = "1.0.140"
