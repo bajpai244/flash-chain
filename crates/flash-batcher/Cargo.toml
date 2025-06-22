@@ -1,0 +1,28 @@
+[package]
+name = "flash-batcher"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+reth = { workspace = true }
+reth-exex =  { workspace = true }
+reth-node-api =  { workspace = true }
+reth-primitives = { workspace = true }
+reth-primitives-traits = { workspace = true }
+reth-node-ethereum  = { workspace = true }
+alloy-primitives = { workspace = true }
+tokio = { workspace = true }
+futures = { workspace = true }
+eyre = { workspace = true }
+tracing = { workspace = true }
+serde_json = { workspace = true }
+
+futures-util =  { workspace = true }
+
+# Database operations
+rusqlite =  { workspace = true }
+
+# Serialization and error handling
+serde =  { workspace = true }
+bincode =  { workspace = true }
+anyhow =  { workspace = true }

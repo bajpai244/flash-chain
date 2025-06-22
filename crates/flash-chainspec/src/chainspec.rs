@@ -17,7 +17,16 @@ pub static FLASH_CHAIN: LazyLock<Arc<OpChainSpec>> = LazyLock::new(|| {
     let genesis = serde_json::from_str(include_str!("../../../config/genesis.json"))
         .expect("Can't deserialize Flash genesis json");
 
-    let hardforks = OP_SEPOLIA_HARDFORKS.clone();
+    let mut hardforks = OP_SEPOLIA_HARDFORKS.clone();
+
+    // Remove hardforks that aren't supported by our genesis.json
+    // used an old versio of op-deployer, so these hardforks are not supported
+    hardforks.remove(OpHardfork::Holocene);
+    hardforks.remove(OpHardfork::Isthmus);
+    hardforks.remove(EthereumHardfork::Prague);
+
+    // let hardforks = ODYSSEY_FORKS.clone();
+
     OpChainSpec {
         inner: ChainSpec {
             chain: Chain::from_id(FLASH_CHAIN_ID),
