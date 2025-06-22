@@ -57,3 +57,4 @@ uuid = "1.17.0"
 
 # Database operations
 rusqlite = { version = "0.31", features = ["bundled"] }
+thiserror = "1.0"

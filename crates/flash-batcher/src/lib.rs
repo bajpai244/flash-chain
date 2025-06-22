@@ -9,7 +9,7 @@ use std::{
     pin::Pin,
     task::{Context, Poll, ready},
 };
-use tracing::info;
+use tracing::{info, debug, error, warn};
 
 use crate::channel_builder::ChannelBuilder;
 use crate::db::{BatchStatus, BlockData, DB};
@@ -22,7 +22,7 @@ fn serialize_block<B: Block>(block: &SealedBlock<B>) -> anyhow::Result<Vec<u8>>
 where
     SealedBlock<B>: serde::Serialize,
 {
-    Ok(serde_json::to_vec(block)?)
+    serde_json::to_vec(block).map_err(|e| anyhow::anyhow!("Failed to serialize block: {}", e))
 }
 
 pub struct BatcherExEx<Node: FullNodeComponents> {
@@ -46,8 +46,13 @@ impl<Node: FullNodeComponents> Future for BatcherExEx<Node> {
             match &notification {
                 ExExNotification::ChainCommitted { new } => {
                     for block in new.blocks_iter() {
-                        // TODO: remove unwrap?
-                        let data = serialize_block(block.sealed_block()).unwrap();
+                        let data = match serialize_block(block.sealed_block()) {
+                            Ok(data) => data,
+                            Err(e) => {
+                                error!("Failed to serialize block {}: {}", block.number(), e);
+                                continue; // Skip this block but continue processing
+                            }
+                        };
 
                         let block_data = BlockData {
                             block_number: block.number(),
@@ -57,30 +62,32 @@ impl<Node: FullNodeComponents> Future for BatcherExEx<Node> {
                             batch_id: None,
                         };
 
-                        // TODO: remove clone?
                         this.channel_builder.add_block(block_data.clone());
-                        println!(
-                            "pending blocks length: {:?}, batch size: {:?}",
+                        debug!(
+                            "Added block {} to queue. Pending: {}/{}", 
+                            block.number(),
                             this.channel_builder.pending_blocks().len(),
                             this.channel_builder.batch_size()
                         );
 
-                        if this.channel_builder.pending_blocks().len() >= this.channel_builder.batch_size() as usize
-                        {
-                            // TODO: remove unwrap?
-                            this.channel_builder.insert_batch().unwrap();
+                        if this.channel_builder.pending_blocks().len() >= this.channel_builder.batch_size() as usize {
+                            debug!("Batch size reached, creating batch...");
+                            
+                            if let Err(e) = this.channel_builder.insert_batch() {
+                                error!("Failed to insert batch: {}", e);
+                                continue;
+                            }
+                            
                             this.channel_builder.clear_queue();
 
                             let db = this.channel_builder.db();
-
-                            // submit the batch
-                            submit_batches(db)?;
+                            if let Err(e) = submit_batches(db) {
+                                error!("Failed to submit batches: {}", e);
+                            }
                         }
 
-                        println!("block_data: {:?}", block_data);
+                        debug!("Processed block: {}", block.number());
                     }
-
-                    // start the batcher submission loop in the background
 
                     info!(committed_chain = ?new.range(), "Received commit");
 
@@ -89,10 +96,10 @@ impl<Node: FullNodeComponents> Future for BatcherExEx<Node> {
                         .send(ExExEvent::FinishedHeight(new.tip().num_hash()))?;
                 }
                 ExExNotification::ChainReorged { old, new } => {
-                    info!(from_chain = ?old.range(), to_chain = ?new.range(), "Received reorg");
+                    warn!(from_chain = ?old.range(), to_chain = ?new.range(), "Received reorg");
                 }
                 ExExNotification::ChainReverted { old } => {
-                    info!(reverted_chain = ?old.range(), "Received revert");
+                    warn!(reverted_chain = ?old.range(), "Received revert");
                 }
             };
         }
@@ -102,18 +109,26 @@ impl<Node: FullNodeComponents> Future for BatcherExEx<Node> {
 }
 
 fn submit_batches(db: Arc<Mutex<DB>>) -> eyre::Result<()> {
-    let db = db.lock().unwrap();
-    let batches = db.get_pending_batches()?;
+    let db = db.lock().map_err(|_| eyre::eyre!("Database lock poisoned"))?;
+    
+    let batches = db.get_pending_batches()
+        .map_err(|e| eyre::eyre!("Failed to get pending batches: {}", e))?;
+
+    debug!("Found {} pending batches to submit", batches.len());
 
     for batch in batches {
-        // NOTE: right now we are not submitting the batches to the flash chain, we are just printing them to the console
+        // NOTE: right now we are not submitting the batches to the flash chain, we are just marking them as submitted
         // ideally we would make a call via the celestia-client to submit the batches for the flash chain
-        println!("batch submitted: {:?}", batch);
+        debug!("Processing batch: {} with {} blocks", batch.id, batch.block_numbers.len());
 
-        db.update_batch_status(&batch.id, BatchStatus::Submitted)?;
+        if let Err(e) = db.update_batch_status(&batch.id, BatchStatus::Submitted) {
+            error!("Failed to update batch status for {}: {}", batch.id, e);
+            continue;
+        }
+        
+        info!("Successfully submitted batch: {}", batch.id);
     }
 
-    info!("batches submitted ........");
-
+    info!("Batch submission completed");
     Ok(())
 }
