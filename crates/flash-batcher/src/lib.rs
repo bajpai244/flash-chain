@@ -11,6 +11,7 @@ use std::{
 };
 use tracing::info;
 
+use crate::batcher::Batcher;
 use crate::db::BlockData;
 use reth_primitives::SealedBlock;
 
@@ -26,11 +27,12 @@ where
 
 pub struct BatcherExEx<Node: FullNodeComponents> {
     ctx: ExExContext<Node>,
+    batcher: Batcher,
 }
 
 impl<Node: FullNodeComponents> BatcherExEx<Node> {
-    pub async fn new(ctx: ExExContext<Node>) -> eyre::Result<Self> {
-        Ok(Self { ctx })
+    pub async fn new(ctx: ExExContext<Node>, batcher: Batcher) -> eyre::Result<Self> {
+        Ok(Self { ctx, batcher })
     }
 }
 
@@ -54,6 +56,20 @@ impl<Node: FullNodeComponents> Future for BatcherExEx<Node> {
                             block_data: data,
                             batch_id: None,
                         };
+
+                        // TODO: remove clone?
+                        this.batcher.add_block(block_data.clone());
+                        println!(
+                            "pending blocks length: {:?}",
+                            this.batcher.pending_blocks().len()
+                        );
+
+                        if this.batcher.pending_blocks().len() >= this.batcher.batch_size() as usize
+                        {
+                            // TODO: remove unwrap?
+                            this.batcher.insert_batch().unwrap();
+                            this.batcher.clear_queue();
+                        }
 
                         println!("block_data: {:?}", block_data);
                     }

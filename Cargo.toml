@@ -53,6 +53,7 @@ tokio = "1.45.1"
 futures = "0.3.31"
 
 futures-util = "0.3"
+uuid = "1.17.0"
 
 # Database operations
 rusqlite = { version = "0.31", features = ["bundled"] }

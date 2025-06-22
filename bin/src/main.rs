@@ -1,5 +1,7 @@
+use std::sync::{Arc, Mutex};
+
 use clap::Parser;
-use flash_batcher::BatcherExEx;
+use flash_batcher::{BatcherExEx, batcher::Batcher, db::initialize_database};
 use flash_chainspec::FlashChainSpecParser;
 use reth_optimism_cli::Cli;
 use reth_optimism_node::{OpNode, args::RollupArgs};
@@ -7,6 +9,9 @@ use tracing::info;
 
 fn main() {
     reth_cli_util::sigsegv_handler::install();
+
+    let db = Arc::new(Mutex::new(initialize_database().unwrap()));
+    let batcher = Batcher::new(db, 10);
 
     if let Err(err) =
         Cli::<FlashChainSpecParser, RollupArgs>::parse().run(async move |builder, rollup_args| {
@@ -16,7 +21,10 @@ fn main() {
 
             let handle = builder
                 .node(node)
-                .install_exex("exex", |ctx| async move { BatcherExEx::new(ctx).await })
+                .install_exex(
+                    "exex",
+                    |ctx| async move { BatcherExEx::new(ctx, batcher).await },
+                )
                 .launch_with_debug_capabilities()
                 .await?;
 
