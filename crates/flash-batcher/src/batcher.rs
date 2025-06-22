@@ -22,6 +22,10 @@ impl Batcher {
         }
     }
 
+    pub fn db(&self) -> Arc<Mutex<DB>> {
+        self.db.clone()
+    }
+
     pub fn batch_size(&self) -> u64 {
         self.batch_size
     }

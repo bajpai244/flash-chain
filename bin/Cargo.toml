@@ -35,3 +35,5 @@ tracing = { workspace = true }
 
 flash-chainspec = { path = "../crates/flash-chainspec" }  
 flash-batcher = { path = "../crates/flash-batcher" } 
+
+tokio = { workspace = true }

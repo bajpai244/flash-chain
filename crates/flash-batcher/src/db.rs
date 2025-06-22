@@ -1,5 +1,8 @@
+use std::fmt::Display;
+
 use rusqlite::{Connection, Result};
 use serde::{Deserialize, Serialize};
+use serde_json;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BlockData {
@@ -28,6 +31,17 @@ pub enum BatchStatus {
     Submitting,
     Submitted,
     Failed,
+}
+
+impl Display for BatchStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BatchStatus::Pending => write!(f, "Pending"),
+            BatchStatus::Submitting => write!(f, "Submitting"),
+            BatchStatus::Submitted => write!(f, "Submitted"),
+            BatchStatus::Failed => write!(f, "Failed"),
+        }
+    }
 }
 
 pub struct DB {
@@ -59,6 +73,47 @@ impl DB {
             [],
         )?;
 
+        Ok(())
+    }
+
+    pub fn get_pending_batches(&self) -> Result<Vec<BatchInfo>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT * FROM batches WHERE status = 'Pending'")?;
+
+        let batches = stmt.query_map([], |row| {
+            let block_numbers_str: String = row.get(1)?;
+            let status_str: String = row.get(7)?;
+            let data: String = row.get(2)?;
+
+            Ok(BatchInfo {
+                id: row.get(0)?,
+                block_numbers: serde_json::from_str(&block_numbers_str).unwrap_or_default(),
+                data: serde_json::from_str(&data).unwrap_or_default(),
+                created_at: row.get(3)?,
+                submitted_at: row.get(4)?,
+                celestia_height: row.get(5)?,
+                retry_count: row.get(6)?,
+                status: match status_str.as_str() {
+                    "Pending" => BatchStatus::Pending,
+                    "Submitting" => BatchStatus::Submitting,
+                    "Submitted" => BatchStatus::Submitted,
+                    "Failed" => BatchStatus::Failed,
+                    _ => BatchStatus::Pending,
+                },
+            })
+        })?;
+
+        println!("batch extracted correctly");
+
+        Ok(batches.collect::<Result<Vec<BatchInfo>>>()?)
+    }
+
+    pub fn update_batch_status(&self, batch_id: &str, status: BatchStatus) -> Result<()> {
+        self.conn.execute(
+            "UPDATE batches SET status = ? WHERE id = ?",
+            (status.to_string(), batch_id),
+        )?;
         Ok(())
     }
 }

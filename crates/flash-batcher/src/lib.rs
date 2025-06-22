@@ -14,7 +14,7 @@ use std::{
 use tracing::info;
 
 use crate::batcher::Batcher;
-use crate::db::BlockData;
+use crate::db::{BatchStatus, BlockData, DB};
 use reth_primitives::SealedBlock;
 
 pub mod batcher;
@@ -62,8 +62,9 @@ impl<Node: FullNodeComponents> Future for BatcherExEx<Node> {
                         // TODO: remove clone?
                         this.batcher.add_block(block_data.clone());
                         println!(
-                            "pending blocks length: {:?}",
-                            this.batcher.pending_blocks().len()
+                            "pending blocks length: {:?}, batch size: {:?}",
+                            this.batcher.pending_blocks().len(),
+                            this.batcher.batch_size()
                         );
 
                         if this.batcher.pending_blocks().len() >= this.batcher.batch_size() as usize
@@ -71,6 +72,11 @@ impl<Node: FullNodeComponents> Future for BatcherExEx<Node> {
                             // TODO: remove unwrap?
                             this.batcher.insert_batch().unwrap();
                             this.batcher.clear_queue();
+
+                            let db = this.batcher.db();
+
+                            // submit the batch
+                            submit_batches(db)?;
                         }
 
                         println!("block_data: {:?}", block_data);
@@ -95,4 +101,21 @@ impl<Node: FullNodeComponents> Future for BatcherExEx<Node> {
 
         Poll::Ready(Ok(()))
     }
+}
+
+fn submit_batches(db: Arc<Mutex<DB>>) -> eyre::Result<()> {
+    let db = db.lock().unwrap();
+    let batches = db.get_pending_batches()?;
+
+    for batch in batches {
+        // NOTE: right now we are not submitting the batches to the flash chain, we are just printing them to the console
+        // ideally we would make a call via the celestia-client to submit the batches for the flash chain
+        println!("batch submitted: {:?}", batch);
+
+        db.update_batch_status(&batch.id, BatchStatus::Submitted)?;
+    }
+
+    info!("batches submitted ........");
+
+    Ok(())
 }
