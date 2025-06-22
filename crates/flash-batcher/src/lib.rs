@@ -9,7 +9,7 @@ use std::{
     pin::Pin,
     task::{Context, Poll, ready},
 };
-use tracing::{info, debug, error, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::channel_builder::ChannelBuilder;
 use crate::db::{BatchStatus, BlockData, DB};
@@ -31,8 +31,14 @@ pub struct BatcherExEx<Node: FullNodeComponents> {
 }
 
 impl<Node: FullNodeComponents> BatcherExEx<Node> {
-    pub async fn new(ctx: ExExContext<Node>, channel_builder: ChannelBuilder) -> eyre::Result<Self> {
-        Ok(Self { ctx, channel_builder })
+    pub async fn new(
+        ctx: ExExContext<Node>,
+        channel_builder: ChannelBuilder,
+    ) -> eyre::Result<Self> {
+        Ok(Self {
+            ctx,
+            channel_builder,
+        })
     }
 }
 
@@ -64,20 +70,22 @@ impl<Node: FullNodeComponents> Future for BatcherExEx<Node> {
 
                         this.channel_builder.add_block(block_data.clone());
                         debug!(
-                            "Added block {} to queue. Pending: {}/{}", 
+                            "Added block {} to queue. Pending: {}/{}",
                             block.number(),
                             this.channel_builder.pending_blocks().len(),
                             this.channel_builder.batch_size()
                         );
 
-                        if this.channel_builder.pending_blocks().len() >= this.channel_builder.batch_size() as usize {
+                        if this.channel_builder.pending_blocks().len()
+                            >= this.channel_builder.batch_size() as usize
+                        {
                             debug!("Batch size reached, creating batch...");
-                            
+
                             if let Err(e) = this.channel_builder.insert_batch() {
                                 error!("Failed to insert batch: {}", e);
                                 continue;
                             }
-                            
+
                             this.channel_builder.clear_queue();
 
                             let db = this.channel_builder.db();
@@ -109,9 +117,12 @@ impl<Node: FullNodeComponents> Future for BatcherExEx<Node> {
 }
 
 fn submit_batches(db: Arc<Mutex<DB>>) -> eyre::Result<()> {
-    let db = db.lock().map_err(|_| eyre::eyre!("Database lock poisoned"))?;
-    
-    let batches = db.get_pending_batches()
+    let db = db
+        .lock()
+        .map_err(|_| eyre::eyre!("Database lock poisoned"))?;
+
+    let batches = db
+        .get_pending_batches()
         .map_err(|e| eyre::eyre!("Failed to get pending batches: {}", e))?;
 
     debug!("Found {} pending batches to submit", batches.len());
@@ -119,13 +130,17 @@ fn submit_batches(db: Arc<Mutex<DB>>) -> eyre::Result<()> {
     for batch in batches {
         // NOTE: right now we are not submitting the batches to the flash chain, we are just marking them as submitted
         // ideally we would make a call via the celestia-client to submit the batches for the flash chain
-        debug!("Processing batch: {} with {} blocks", batch.id, batch.block_numbers.len());
+        debug!(
+            "Processing batch: {} with {} blocks",
+            batch.id,
+            batch.block_numbers.len()
+        );
 
         if let Err(e) = db.update_batch_status(&batch.id, BatchStatus::Submitted) {
             error!("Failed to update batch status for {}: {}", batch.id, e);
             continue;
         }
-        
+
         info!("Successfully submitted batch: {}", batch.id);
     }
 

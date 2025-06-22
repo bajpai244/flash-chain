@@ -5,7 +5,7 @@ use flash_batcher::{BatcherExEx, channel_builder::ChannelBuilder, db::DB};
 use flash_chainspec::FlashChainSpecParser;
 use reth_optimism_cli::Cli;
 use reth_optimism_node::{OpNode, args::RollupArgs};
-use tracing::{info, error};
+use tracing::{error, info};
 
 fn main() {
     reth_cli_util::sigsegv_handler::install();
@@ -31,7 +31,10 @@ fn main() {
     }
 
     let channel_builder = ChannelBuilder::new(db, BATCH_SIZE);
-    info!("Initialized channel builder with batch size: {}", BATCH_SIZE);
+    info!(
+        "Initialized channel builder with batch size: {}",
+        BATCH_SIZE
+    );
 
     if let Err(err) =
         Cli::<FlashChainSpecParser, RollupArgs>::parse().run(async move |builder, rollup_args| {
@@ -41,10 +44,9 @@ fn main() {
 
             let handle = builder
                 .node(node)
-                .install_exex(
-                    "flash-batcher",
-                    |ctx| async move { BatcherExEx::new(ctx, channel_builder).await },
-                )
+                .install_exex("flash-batcher", |ctx| async move {
+                    BatcherExEx::new(ctx, channel_builder).await
+                })
                 .launch_with_debug_capabilities()
                 .await?;
 
