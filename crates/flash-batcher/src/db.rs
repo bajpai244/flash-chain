@@ -73,7 +73,7 @@ impl DB {
                 "CREATE TABLE IF NOT EXISTS batches (
                 id TEXT PRIMARY KEY,
                 block_numbers TEXT NOT NULL,
-                data TEXT NOT NULL,  -- Changed from BLOB to TEXT for consistency
+                data TEXT NOT NULL,  
                 created_at INTEGER NOT NULL,
                 submitted_at INTEGER,
                 celestia_height INTEGER,
