@@ -1,4 +1,4 @@
-use crate::db::BlockData;
+use crate::db::{BlockData, DB};
 use rusqlite::Connection;
 use std::{
     collections::VecDeque,
@@ -8,13 +8,13 @@ use tracing::info;
 use uuid::Uuid;
 
 pub struct Batcher {
-    db: Arc<Mutex<Connection>>,
+    db: Arc<Mutex<DB>>,
     pending_blocks: VecDeque<BlockData>,
     batch_size: u64,
 }
 
 impl Batcher {
-    pub fn new(db: Arc<Mutex<Connection>>, batch_size: u64) -> Self {
+    pub fn new(db: Arc<Mutex<DB>>, batch_size: u64) -> Self {
         Self {
             db,
             pending_blocks: VecDeque::new(),
@@ -40,7 +40,7 @@ impl Batcher {
 
     // creates a batch from the pending blocks and inserts it into the database
     pub fn insert_batch(&mut self) -> anyhow::Result<()> {
-        let conn = self.db.lock().unwrap();
+        let db = self.db.lock().unwrap();
 
         // batch data is a concat of all the block data
         let batch_data: Vec<Vec<u8>> = self
@@ -63,7 +63,7 @@ impl Batcher {
         let block_numbers = serde_json::to_string(&block_numbers)?;
 
         // Create batch record
-        conn.execute(
+        db.conn().execute(
             "INSERT INTO batches (id, block_numbers, data, created_at, status) 
                  VALUES (?1, ?2, ?3, ?4, ?5)",
             (

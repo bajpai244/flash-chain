@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use clap::Parser;
-use flash_batcher::{BatcherExEx, batcher::Batcher, db::initialize_database};
+use flash_batcher::{BatcherExEx, batcher::Batcher, db::DB};
 use flash_chainspec::FlashChainSpecParser;
 use reth_optimism_cli::Cli;
 use reth_optimism_node::{OpNode, args::RollupArgs};
@@ -10,7 +10,9 @@ use tracing::info;
 fn main() {
     reth_cli_util::sigsegv_handler::install();
 
-    let db = Arc::new(Mutex::new(initialize_database().unwrap()));
+    let db = Arc::new(Mutex::new(DB::new("batcher.db")));
+    db.lock().unwrap().initialize_database().unwrap();
+
     let batcher = Batcher::new(db, 10);
 
     if let Err(err) =

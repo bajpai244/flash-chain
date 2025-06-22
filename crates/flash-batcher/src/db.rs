@@ -1,6 +1,5 @@
 use rusqlite::{Connection, Result};
 use serde::{Deserialize, Serialize};
-use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BlockData {
@@ -31,21 +30,35 @@ pub enum BatchStatus {
     Failed,
 }
 
-pub fn initialize_database() -> Result<Connection> {
-    let conn = Connection::open("batcher.db")?;
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS batches (
-            id TEXT PRIMARY KEY,
-            block_numbers TEXT NOT NULL,
-            data BLOB NOT NULL,
-            created_at INTEGER NOT NULL,
-            submitted_at INTEGER,
-            celestia_height INTEGER,
-            retry_count INTEGER DEFAULT 0,
-            status TEXT NOT NULL DEFAULT 'Pending'
-        )",
-        [],
-    )?;
+pub struct DB {
+    conn: Connection,
+}
 
-    Ok(conn)
+impl DB {
+    pub fn new(file_name: &str) -> Self {
+        let conn = Connection::open(file_name).unwrap();
+        Self { conn }
+    }
+
+    pub fn conn(&self) -> &Connection {
+        &self.conn
+    }
+
+    pub fn initialize_database(&self) -> Result<()> {
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS batches (
+                id TEXT PRIMARY KEY,
+                block_numbers TEXT NOT NULL,
+                data BLOB NOT NULL,
+                created_at INTEGER NOT NULL,
+                submitted_at INTEGER,
+                celestia_height INTEGER,
+                retry_count INTEGER DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'Pending'
+            )",
+            [],
+        )?;
+
+        Ok(())
+    }
 }
