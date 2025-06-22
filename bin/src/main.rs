@@ -1,5 +1,5 @@
 use clap::Parser;
-use flash_batcher::exex;
+use flash_batcher::BatcherExEx;
 use flash_chainspec::FlashChainSpecParser;
 use reth_optimism_cli::Cli;
 use reth_optimism_node::{OpNode, args::RollupArgs};
@@ -16,7 +16,7 @@ fn main() {
 
             let handle = builder
                 .node(node)
-                .install_exex("exex", async move |ctx| Ok(exex(ctx)))
+                .install_exex("exex", |ctx| async move { BatcherExEx::new(ctx).await })
                 .launch_with_debug_capabilities()
                 .await?;
 

@@ -1,23 +1,21 @@
 use rusqlite::Connection;
 use std::{collections::VecDeque, sync::Arc};
-use tokio::{sync::Mutex, task::JoinHandle};
+use tokio::sync::Mutex;
 
 use crate::db::{BlockData, initialize_database};
 
-pub struct BatcherExEx {
+pub struct Batcher {
     db: Arc<Mutex<Connection>>,
     pending_blocks: VecDeque<BlockData>,
-    batch_submitter_handle: Option<JoinHandle<()>>,
+    batch_size: u64,
 }
 
-impl BatcherExEx {
-    pub async fn new() -> anyhow::Result<Self> {
-        let db = Arc::new(Mutex::new(initialize_database()?));
-
+impl Batcher {
+    pub async fn new(db: Arc<Mutex<Connection>>, batch_size: u64) -> anyhow::Result<Self> {
         Ok(Self {
             db,
             pending_blocks: VecDeque::new(),
-            batch_submitter_handle: None,
+            batch_size,
         })
     }
 }
