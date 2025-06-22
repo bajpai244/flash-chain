@@ -1,4 +1,6 @@
 /target
+
 datadir
 jwt.txt
 batcher.db
+log.txt
