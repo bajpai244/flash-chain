@@ -1,5 +1,4 @@
 use crate::db::{BlockData, DB};
-use rusqlite::Connection;
 use std::{
     collections::VecDeque,
     sync::{Arc, Mutex},
@@ -7,13 +6,13 @@ use std::{
 use tracing::info;
 use uuid::Uuid;
 
-pub struct Batcher {
+pub struct ChannelBuilder {
     db: Arc<Mutex<DB>>,
     pending_blocks: VecDeque<BlockData>,
     batch_size: u64,
 }
 
-impl Batcher {
+impl ChannelBuilder {
     pub fn new(db: Arc<Mutex<DB>>, batch_size: u64) -> Self {
         Self {
             db,

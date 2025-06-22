@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use clap::Parser;
-use flash_batcher::{BatcherExEx, batcher::Batcher, db::DB};
+use flash_batcher::{BatcherExEx, channel_builder::ChannelBuilder, db::DB};
 use flash_chainspec::FlashChainSpecParser;
 use reth_optimism_cli::Cli;
 use reth_optimism_node::{OpNode, args::RollupArgs};
@@ -13,7 +13,7 @@ fn main() {
     let db = Arc::new(Mutex::new(DB::new("batcher.db")));
     db.lock().unwrap().initialize_database().unwrap();
 
-    let batcher = Batcher::new(db, 10);
+    let channel_builder = ChannelBuilder::new(db, 10);
 
     if let Err(err) =
         Cli::<FlashChainSpecParser, RollupArgs>::parse().run(async move |builder, rollup_args| {
@@ -25,7 +25,7 @@ fn main() {
                 .node(node)
                 .install_exex(
                     "exex",
-                    |ctx| async move { BatcherExEx::new(ctx, batcher).await },
+                    |ctx| async move { BatcherExEx::new(ctx, channel_builder).await },
                 )
                 .launch_with_debug_capabilities()
                 .await?;

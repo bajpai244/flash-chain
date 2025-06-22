@@ -1,10 +1,8 @@
 use futures::{FutureExt, TryStreamExt};
 use reth::core::primitives::AlloyBlockHeader;
-use reth::{builder::NodeTypes, primitives::EthPrimitives};
 use reth_exex::{ExExContext, ExExEvent, ExExNotification};
 use reth_node_api::FullNodeComponents;
 use reth_primitives_traits::Block;
-use rusqlite::Connection;
 use std::sync::{Arc, Mutex};
 use std::{
     future::Future,
@@ -13,11 +11,11 @@ use std::{
 };
 use tracing::info;
 
-use crate::batcher::Batcher;
+use crate::channel_builder::ChannelBuilder;
 use crate::db::{BatchStatus, BlockData, DB};
 use reth_primitives::SealedBlock;
 
-pub mod batcher;
+pub mod channel_builder;
 pub mod db;
 
 fn serialize_block<B: Block>(block: &SealedBlock<B>) -> anyhow::Result<Vec<u8>>
@@ -29,12 +27,12 @@ where
 
 pub struct BatcherExEx<Node: FullNodeComponents> {
     ctx: ExExContext<Node>,
-    batcher: Batcher,
+    channel_builder: ChannelBuilder,
 }
 
 impl<Node: FullNodeComponents> BatcherExEx<Node> {
-    pub async fn new(ctx: ExExContext<Node>, batcher: Batcher) -> eyre::Result<Self> {
-        Ok(Self { ctx, batcher })
+    pub async fn new(ctx: ExExContext<Node>, channel_builder: ChannelBuilder) -> eyre::Result<Self> {
+        Ok(Self { ctx, channel_builder })
     }
 }
 
@@ -60,20 +58,20 @@ impl<Node: FullNodeComponents> Future for BatcherExEx<Node> {
                         };
 
                         // TODO: remove clone?
-                        this.batcher.add_block(block_data.clone());
+                        this.channel_builder.add_block(block_data.clone());
                         println!(
                             "pending blocks length: {:?}, batch size: {:?}",
-                            this.batcher.pending_blocks().len(),
-                            this.batcher.batch_size()
+                            this.channel_builder.pending_blocks().len(),
+                            this.channel_builder.batch_size()
                         );
 
-                        if this.batcher.pending_blocks().len() >= this.batcher.batch_size() as usize
+                        if this.channel_builder.pending_blocks().len() >= this.channel_builder.batch_size() as usize
                         {
                             // TODO: remove unwrap?
-                            this.batcher.insert_batch().unwrap();
-                            this.batcher.clear_queue();
+                            this.channel_builder.insert_batch().unwrap();
+                            this.channel_builder.clear_queue();
 
-                            let db = this.batcher.db();
+                            let db = this.channel_builder.db();
 
                             // submit the batch
                             submit_batches(db)?;

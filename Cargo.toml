@@ -3,7 +3,7 @@ members = [
     "bin",
     "crates/flash-chainspec",
     "crates/flash-batcher"
-, "crates/celestia"]
+]
 resolver = "2"
 
 [workspace.dependencies]
